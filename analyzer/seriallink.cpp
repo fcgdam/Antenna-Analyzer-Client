@@ -293,12 +293,15 @@ printf("f=%ld\n",frequency);
                     if (useraw)
                     {
                         double vf,vr,vz,va;
+
                         sscanf(rxbuff,"%lf,%lf,%lf,%lf",&vf,&vr,&vz,&va);
+                        //printf("Data: Vf=%lf , Vr=%lf, Vz=%lf, Va=%lf\n", vf, vr, vz, va);
                         sample.fromRaw(vf,vr,vz,va);
                     }
                     else
                     {
                         sscanf(rxbuff,"%lf,%lf,%lf,%lf",&sample.swr,&sample.R,&sample.X,&sample.Z);
+                        //printf("Data: SWR=%lf, R=%lf, X=%lf, Z=%lf\n", sample.swr, sample.R, sample.X, sample.Z );
                     }
 
                     scandata.points.push_back(sample);
@@ -322,7 +325,7 @@ void SerialLink::Cmd_Off(EventReceiver *erx)
 
     //RxFlush();
 
-    TxCmd("off\r");
+    TxCmd((char *)"off\r");
 
     for (;state<10;)
     {
@@ -337,6 +340,7 @@ printf("state: %d\n",state);
             case 0:
                 if (strcmp(rxbuff,"OK")==0)
                 {
+                    printf("Command off accepted\n");
                     erx->RaiseEvent(EventReceiver::progress_event, 100);
                     state=10;    //Results
                 }

@@ -140,11 +140,20 @@
                <string>Plot</string>
               </property>
               <layout class="QGridLayout" name="gridLayout_4">
+               <property name="leftMargin">
+                <number>6</number>
+               </property>
+               <property name="topMargin">
+                <number>6</number>
+               </property>
+               <property name="rightMargin">
+                <number>6</number>
+               </property>
+               <property name="bottomMargin">
+                <number>6</number>
+               </property>
                <property name="verticalSpacing">
                 <number>0</number>
-               </property>
-               <property name="margin">
-                <number>6</number>
                </property>
                <item row="0" column="1">
                 <widget class="QWidget" name="widget_9" native="true">
@@ -896,11 +905,20 @@
                <string>Plot</string>
               </property>
               <layout class="QGridLayout" name="gridLayout_2">
+               <property name="leftMargin">
+                <number>6</number>
+               </property>
+               <property name="topMargin">
+                <number>6</number>
+               </property>
+               <property name="rightMargin">
+                <number>6</number>
+               </property>
+               <property name="bottomMargin">
+                <number>6</number>
+               </property>
                <property name="verticalSpacing">
                 <number>0</number>
-               </property>
-               <property name="margin">
-                <number>6</number>
                </property>
                <item row="1" column="1">
                 <widget class="QWidget" name="widget_5" native="true">
@@ -1291,7 +1309,16 @@
                </size>
               </property>
               <layout class="QHBoxLayout" name="horizontalLayout">
-               <property name="margin">
+               <property name="leftMargin">
+                <number>0</number>
+               </property>
+               <property name="topMargin">
+                <number>0</number>
+               </property>
+               <property name="rightMargin">
+                <number>0</number>
+               </property>
+               <property name="bottomMargin">
                 <number>0</number>
                </property>
                <item>
@@ -1322,11 +1349,7 @@
                 </spacer>
                </item>
                <item>
-                <widget class="QLabel" name="cursor_disp">
-                 <property name="text">
-                  <string>TextLabel</string>
-                 </property>
-                </widget>
+                <widget class="QLabel" name="cursor_disp"/>
                </item>
               </layout>
              </widget>

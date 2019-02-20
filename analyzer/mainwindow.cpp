@@ -13,7 +13,7 @@
 #include "ui_mainwindow.h"
 
 const Version
-    MainWindow::version = Version(0,9,8,"");
+    MainWindow::version = Version(0,10,14,"");
 
 ScanData scandata;
 
@@ -21,7 +21,8 @@ MainWindow::MainWindow(QWidget *parent) :
     QMainWindow(parent),
     ui(new Ui::MainWindow)
 {
-setlinebuf(stdout);
+    setlocale(LC_NUMERIC,"C");  // Make sure that the sscanf does work...
+    setlinebuf(stdout);
 
     Config::read();
 
@@ -121,6 +122,7 @@ void MainWindow::draw_graph1()
     scale = ui->canvas1->yscale2;
     scale->vmin = 0.0; //scandata.points[scandata.Z_min_idx].Z;
     scale->vmax = 0.0;
+
     if (ui->canvas1->ztrace->enabled && scandata.points[scandata.Z_max_idx].Z>scale->vmax) scale->vmax=scandata.points[scandata.Z_max_idx].Z;
     //if (ui->canvas1->xtrace->enabled && scandata.points[scandata.X_max_idx].X>scale->vmax) scale->vmax=scandata.points[scandata.X_max_idx].X;
     if (ui->canvas1->xtrace->enabled) scale->Expand(scandata.points[scandata.X_min_idx].X,scandata.points[scandata.X_max_idx].X);
@@ -130,33 +132,46 @@ void MainWindow::draw_graph1()
     scale->SetIncAuto();
     scale->SetMinAuto();
 
+    printf("Data points available: %ld\n" , scandata.points.size() );
+
     ui->canvas1->swrtrace->points.resize(scandata.points.size());
-    for (unsigned int i=0;i<scandata.points.size();i++)
+    for (unsigned int i=0;i<scandata.points.size();i++) {
         ui->canvas1->swrtrace->points[i] = scandata.points[i].swr;
+//        printf("SWR: %lf\n" , scandata.points[i].swr);
+    }
 
     ui->canvas1->ztrace->points.resize(scandata.points.size());
-    for (unsigned int i=0;i<scandata.points.size();i++)
+    for (unsigned int i=0;i<scandata.points.size();i++) {
         ui->canvas1->ztrace->points[i] = scandata.points[i].Z;
+//        printf("Z:   %lf\n" , scandata.points[i].Z);
+    }
+    
 
     ui->canvas1->xtrace->points.resize(scandata.points.size());
-    for (unsigned int i=0;i<scandata.points.size();i++)
+    for (unsigned int i=0;i<scandata.points.size();i++) {
         ui->canvas1->xtrace->points[i] = scandata.points[i].X;
+//        printf("X:   %lf\n" , scandata.points[i].X);
+    }
 
 //    ui->canvas1->x2trace->points.resize(scandata.points.size());
 //    for (unsigned int i=0;i<scandata.points.size();i++)
 //        ui->canvas1->x2trace->points[i] = scandata.points[i].X2;
 
     ui->canvas1->rtrace->points.resize(scandata.points.size());
-    for (unsigned int i=0;i<scandata.points.size();i++)
+    for (unsigned int i=0;i<scandata.points.size();i++) {
         ui->canvas1->rtrace->points[i] = scandata.points[i].R;
+//        printf("R:   %lf\n" , scandata.points[i].R);
+    }
 
     ui->canvas1->ZTargetline->val = Config::Z_Target;
     ui->canvas1->SWRTargetline->val = Config::swr_bw_max;
 
     ui->canvas1->swrminline->val = scandata.points[scandata.swr_min_idx].freq;
 
+    printf("Updating canvas...\n");
     ui->canvas1->update();
 
+    printf("Canvas updated!\n");
     //Show stats at the bottom of the graph
     ui->swr_min_disp->setText(QString("%1 (f=%2MHz, Z=%3%4, bw=%5MHz)")
             .arg(scandata.points[scandata.swr_min_idx].swr,0,'f',2)
@@ -164,6 +179,7 @@ void MainWindow::draw_graph1()
             .arg(scandata.points[scandata.swr_min_idx].Z,0,'f',2).arg(QChar(0x03A9))
             .arg((scandata.points[scandata.swr_bw_hi_idx].freq-scandata.points[scandata.swr_bw_lo_idx].freq)/1000000,0,'f',2));
 
+    printf("Label set.\n");
     //Populate data grid
     ui->scan_data->setRowCount(scandata.points.size());
 }
@@ -184,7 +200,9 @@ void MainWindow::Slot_scanBtn_click()
         link->Cmd_Off(this);
     }
 
+    printf("Populating table....\n");
     populate_table();
+    printf("Drawing graph....\n");
     draw_graph1();
 }
 
@@ -452,10 +470,10 @@ void MainWindow::Slot_Settings()
 
 void MainWindow::Slot_copy()
 {
-  QString txt("freq\tSWR\tZ\tR\tX\n");
+  QString txt("Freq\tSWR\tZ\tR\tX\n");
 
   for (unsigned int i=0;i<scandata.points.size();i++)
-     txt += QString("%1\t%2\t%3\t%4\n")
+     txt += QString("%1\t%2\t%3\t%4\t%5\n")
              .arg(scandata.points[i].freq/1000000.0,0,'f')
              .arg(scandata.points[i].swr)
              .arg(scandata.points[i].Z)
@@ -463,4 +481,5 @@ void MainWindow::Slot_copy()
              .arg(scandata.points[i].X);
 
   qApp->clipboard()->setText(txt);
+  printf("Data was copied to the clipboard!\n");
 }
