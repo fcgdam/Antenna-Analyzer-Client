@@ -17,6 +17,10 @@ const Version
 
 ScanData scandata;
 
+/*
+ * Main startup function
+ *
+ */
 MainWindow::MainWindow(QWidget *parent) :
     QMainWindow(parent),
     ui(new Ui::MainWindow)
@@ -31,29 +35,37 @@ MainWindow::MainWindow(QWidget *parent) :
 
     setWindowTitle(Config::App);
 
-    connect(ui->actionLoad, SIGNAL(triggered()), this, SLOT(Slot_Load()));
-    connect(ui->actionSave, SIGNAL(triggered()), this, SLOT(Slot_Save()));
-    connect(ui->actionSettings, SIGNAL(triggered()), this, SLOT(Slot_Settings()));
-    connect(ui->actionQuit, SIGNAL(triggered()), qApp, SLOT(quit()));
-    connect(ui->actionAbout_QT, SIGNAL(triggered()), qApp, SLOT(aboutQt()));
+    connect(ui->actionLoad,           SIGNAL(triggered()), this, SLOT(Slot_Load()));
+    connect(ui->actionSave,           SIGNAL(triggered()), this, SLOT(Slot_Save()));
+    connect(ui->actionSettings,       SIGNAL(triggered()), this, SLOT(Slot_Settings()));
+    connect(ui->actionQuit,           SIGNAL(triggered()), qApp, SLOT(quit()));
+    connect(ui->actionAbout_QT,       SIGNAL(triggered()), qApp, SLOT(aboutQt()));
     connect(ui->actionAbout_Analyzer, SIGNAL(triggered()), this, SLOT(Slot_about()));
 
-    connect(ui->menuDevice, SIGNAL(aboutToShow()), this, SLOT(Slot_menuDevice_Show()));
-    connect(ui->menuDevice, SIGNAL(triggered(QAction *)), this, SLOT(Slot_menuDevice_Select(QAction *)));
+    connect(ui->menuDevice,           SIGNAL(aboutToShow()), this, SLOT(Slot_menuDevice_Show()));
+    connect(ui->menuDevice,           SIGNAL(triggered(QAction *)), this, SLOT(Slot_menuDevice_Select(QAction *)));
 
-    connect(ui->canvas1, SIGNAL(cursorMoved(double)), this, SLOT(Slot_cursor_move(double)));
+    connect(ui->scanGraph,            SIGNAL(cursorMoved(double)), this, SLOT(Slot_cursor_move(double)));
+    connect(ui->monitorGraph,         SIGNAL(cursorMoved(double)), this, SLOT(Slot_moncursor_move(double)));
 
-    connect(ui->scanBtn,SIGNAL(clicked()),this,SLOT(Slot_scanBtn_click()));
-    connect(ui->scanDummyBtn,SIGNAL(clicked()),this,SLOT(Slot_scanDummyBtn_click()));
+    connect(ui->scanBtn,              SIGNAL(clicked()), this,SLOT(Slot_scanBtn_click()));
+    connect(ui->scanDummyBtn,         SIGNAL(clicked()), this,SLOT(Slot_scanDummyBtn_click()));
 
-    connect(ui->copyBtn, SIGNAL(clicked()), this, SLOT(Slot_copy()));
+    connect(ui->copyBtn,              SIGNAL(clicked()), this, SLOT(Slot_copy()));
 
-    connect(ui->band_cb, SIGNAL(currentIndexChanged(int)), this, SLOT(Slot_band_change(int)));
-    connect(ui->fcentre, SIGNAL(valueChanged(double)), this, SLOT(Slot_fcentre_change(double)));
-    connect(ui->fspan, SIGNAL(valueChanged(double)), this, SLOT(Slot_fspan_change(double)));
-    connect(ui->point_count, SIGNAL(valueChanged(int)), this, SLOT(Slot_point_count_change(int)));
+    connect(ui->band_cb,              SIGNAL(currentIndexChanged(int)), this, SLOT(Slot_band_change(int)));
+    connect(ui->fcentre,              SIGNAL(valueChanged(double)), this, SLOT(Slot_fcentre_change(double)));
+    connect(ui->fspan,                SIGNAL(valueChanged(double)), this, SLOT(Slot_fspan_change(double)));
+    connect(ui->point_count,          SIGNAL(valueChanged(int)), this, SLOT(Slot_point_count_change(int)));
 
-    QCheckBox *ctrls[] = {ui->plotz_chk,ui->plotx_chk,ui->plotr_chk,NULL};
+    //connect(ui->freqMon,              SIGNAL(valueChanged(double)), this, SLOT(Slot_freqmon_change(double)));
+    //connect(ui->monInterval,          SIGNAL(valueChanged(double)), this, SLOT(Slot_moninterval_change(double)));
+
+    connect(ui->monstartBtn,          SIGNAL(clicked()), this,SLOT(Slot_monstartBtn_click()));
+    connect(ui->monstopBtn,           SIGNAL(clicked()), this,SLOT(Slot_monstopBtn_click()));
+
+
+    QCheckBox *ctrls[] = {ui->plotz_chk,ui->plotx_chk,ui->plotr_chk, NULL};
     for (int i=0; ctrls[i]; i++)
         connect(ctrls[i], SIGNAL(stateChanged(int)), this, SLOT(Slot_plot_change(int)));
 
@@ -61,14 +73,16 @@ MainWindow::MainWindow(QWidget *parent) :
 
     ui->band_cb->setCurrentIndex(16);
 
+    // Set the headers for the table view
     ui->scan_data->setHorizontalHeaderLabels(QStringList() << "freq" << "SWR" << "Z" << "R" << "X" << "X2");
 
     Slot_scanDummyBtn_click();
 
-    ui->canvas1->cursor = ui->cursor;
+    ui->scanGraph->cursor = ui->scanCursor;
+    ui->monitorGraph->cursor = ui->monitorCursor;
 
-    ui->tabWidget->setCurrentIndex(1);
-    ui->tabWidget->setTabEnabled(0,false);
+    ui->tabWidget->setCurrentIndex(0);
+    ui->tabWidget->setTabEnabled(1,false);
 }
 
 
@@ -88,6 +102,13 @@ void MainWindow::RaiseEvent(event_t event,int arg)
     }
 }
 
+/*
+ * populate_table()
+ *
+ * From the data that is available from the scandata object
+ * fills out the scan_data ui table object to be shown to the user.
+ *
+ * */
 void MainWindow::populate_table()
 {
     //Populate data table
@@ -104,76 +125,201 @@ void MainWindow::populate_table()
     }
 }
 
-void MainWindow::draw_graph1()
+/*
+ * draw_scanGraph()
+ *
+ * Draws the collected scandata on the ui scanGraph object
+ *
+ * */
+void MainWindow::draw_scanGraph()
 {
     GraphScale *scale;
     //double n;
 
-    scale = ui->canvas1->xscale;
+    scale = ui->scanGraph->xscale;
     scale->vmin = scandata.freq_start;
     scale->vmax = scandata.freq_end;
     scale->SetIncAuto();
 
-    scale = ui->canvas1->yscale1;
+    scale = ui->scanGraph->yscale1;
     scale->vmin = 1.0;
     scale->vmax = scandata.points[scandata.swr_max_idx].swr>Config::swr_max ? Config::swr_max : scandata.points[scandata.swr_max_idx].swr;
     scale->SetIncAuto();
 
-    scale = ui->canvas1->yscale2;
+    scale = ui->scanGraph->yscale2;
     scale->vmin = 0.0; //scandata.points[scandata.Z_min_idx].Z;
     scale->vmax = 0.0;
 
-    if (ui->canvas1->ztrace->enabled && scandata.points[scandata.Z_max_idx].Z>scale->vmax) scale->vmax=scandata.points[scandata.Z_max_idx].Z;
-    //if (ui->canvas1->xtrace->enabled && scandata.points[scandata.X_max_idx].X>scale->vmax) scale->vmax=scandata.points[scandata.X_max_idx].X;
-    if (ui->canvas1->xtrace->enabled) scale->Expand(scandata.points[scandata.X_min_idx].X,scandata.points[scandata.X_max_idx].X);
-    if (ui->canvas1->rtrace->enabled && scandata.points[scandata.R_max_idx].R>scale->vmax) scale->vmax=scandata.points[scandata.R_max_idx].R;
-    //if (ui->canvas1->x2trace->enabled && scandata.points[scandata.X2_min_idx].X2<scale->vmin) scale->vmin=scandata.points[scandata.X2_min_idx].X2;
-    if (scale->vmax==0.0) scale->vmax=1.0;
+    if (ui->scanGraph->ztrace->enabled && scandata.points[scandata.Z_max_idx].Z>scale->vmax)
+        scale->vmax=scandata.points[scandata.Z_max_idx].Z;
+
+    //if (ui->scanGraph->xtrace->enabled && scandata.points[scandata.X_max_idx].X>scale->vmax) scale->vmax=scandata.points[scandata.X_max_idx].X;
+
+    if (ui->scanGraph->xtrace->enabled)
+        scale->Expand(scandata.points[scandata.X_min_idx].X,scandata.points[scandata.X_max_idx].X);
+
+    if (ui->scanGraph->rtrace->enabled && scandata.points[scandata.R_max_idx].R>scale->vmax)
+        scale->vmax=scandata.points[scandata.R_max_idx].R;
+
+    //if (ui->scanGraph->x2trace->enabled && scandata.points[scandata.X2_min_idx].X2<scale->vmin) scale->vmin=scandata.points[scandata.X2_min_idx].X2;
+
+    if (scale->vmax==0.0)
+        scale->vmax=1.0;
+
     scale->SetIncAuto();
     scale->SetMinAuto();
 
     printf("Data points available: %ld\n" , scandata.points.size() );
 
-    ui->canvas1->swrtrace->points.resize(scandata.points.size());
+    ui->scanGraph->swrtrace->points.resize(scandata.points.size());
     for (unsigned int i=0;i<scandata.points.size();i++) {
-        ui->canvas1->swrtrace->points[i] = scandata.points[i].swr;
+        ui->scanGraph->swrtrace->points[i] = scandata.points[i].swr;
 //        printf("SWR: %lf\n" , scandata.points[i].swr);
     }
 
-    ui->canvas1->ztrace->points.resize(scandata.points.size());
+    ui->scanGraph->ztrace->points.resize(scandata.points.size());
     for (unsigned int i=0;i<scandata.points.size();i++) {
-        ui->canvas1->ztrace->points[i] = scandata.points[i].Z;
+        ui->scanGraph->ztrace->points[i] = scandata.points[i].Z;
 //        printf("Z:   %lf\n" , scandata.points[i].Z);
     }
     
 
-    ui->canvas1->xtrace->points.resize(scandata.points.size());
+    ui->scanGraph->xtrace->points.resize(scandata.points.size());
     for (unsigned int i=0;i<scandata.points.size();i++) {
-        ui->canvas1->xtrace->points[i] = scandata.points[i].X;
+        ui->scanGraph->xtrace->points[i] = scandata.points[i].X;
 //        printf("X:   %lf\n" , scandata.points[i].X);
     }
 
-//    ui->canvas1->x2trace->points.resize(scandata.points.size());
+//    ui->scanGraph->x2trace->points.resize(scandata.points.size());
 //    for (unsigned int i=0;i<scandata.points.size();i++)
-//        ui->canvas1->x2trace->points[i] = scandata.points[i].X2;
+//        ui->scanGraph->x2trace->points[i] = scandata.points[i].X2;
 
-    ui->canvas1->rtrace->points.resize(scandata.points.size());
+    ui->scanGraph->rtrace->points.resize(scandata.points.size());
     for (unsigned int i=0;i<scandata.points.size();i++) {
-        ui->canvas1->rtrace->points[i] = scandata.points[i].R;
+        ui->scanGraph->rtrace->points[i] = scandata.points[i].R;
 //        printf("R:   %lf\n" , scandata.points[i].R);
     }
 
-    ui->canvas1->ZTargetline->val = Config::Z_Target;
-    ui->canvas1->SWRTargetline->val = Config::swr_bw_max;
+    ui->scanGraph->ZTargetline->val = Config::Z_Target;
+    ui->scanGraph->SWRTargetline->val = Config::swr_bw_max;
 
-    ui->canvas1->swrminline->val = scandata.points[scandata.swr_min_idx].freq;
+    ui->scanGraph->swrminline->val = scandata.points[scandata.swr_min_idx].freq;
+
+    //printf("Updating canvas...\n");
+    ui->scanGraph->update();
+
+    //printf("Canvas updated!\n");
+
+    //Show stats at the bottom of the graph
+    ui->swr_min_disp->setText(QString("%1 (f=%2MHz, Z=%3%4, bw=%5MHz)")
+            .arg(scandata.points[scandata.swr_min_idx].swr,0,'f',2)
+            .arg(scandata.points[scandata.swr_min_idx].freq/1000000)
+            .arg(scandata.points[scandata.swr_min_idx].Z,0,'f',2).arg(QChar(0x03A9))
+            .arg((scandata.points[scandata.swr_bw_hi_idx].freq-scandata.points[scandata.swr_bw_lo_idx].freq)/1000000,0,'f',2));
+
+
+    //Populate data grid
+    ui->scan_data->setRowCount(scandata.points.size());
+}
+
+/*
+ * draw_monitorGraph()
+ *
+ * Draws the collected scandata on the ui monitorGraph object
+ *
+ * */
+void MainWindow::draw_monitorGraph()
+{
+    GraphScale *scale;
+    //double n;
+
+    scale = ui->monitorGraph->xscale;
+    //scale->vmin = 1;
+    //scale->vmax = scandata.points.size() + 1;
+
+    scale->vmin = 1000000;
+    scale->vmax = scandata.freq_end;
+    scale->enabled = false;
+
+    //scale->SetIncAuto();
+
+    printf("Points: %ld\n",scandata.points.size());
+
+    scale->SetIncAuto();
+
+    scale = ui->monitorGraph->yscale1;
+    scale->vmin = 1.0;
+    scale->vmax = scandata.points[scandata.swr_max_idx].swr > Config::swr_max ? Config::swr_max : scandata.points[scandata.swr_max_idx].swr;
+    scale->SetIncAuto();
+
+    scale = ui->monitorGraph->yscale2;
+    scale->vmin = 0.0; //scandata.points[scandata.Z_min_idx].Z;
+    scale->vmax = 0.0;
+
+    if (ui->monitorGraph->ztrace->enabled && scandata.points[scandata.Z_max_idx].Z > scale->vmax)
+        scale->vmax=scandata.points[scandata.Z_max_idx].Z;
+
+    //if (ui->monitorGraph->xtrace->enabled && scandata.points[scandata.X_max_idx].X>scale->vmax)
+    //    scale->vmax=scandata.points[scandata.X_max_idx].X;
+
+    if (ui->monitorGraph->xtrace->enabled)
+        scale->Expand(scandata.points[scandata.X_min_idx].X,scandata.points[scandata.X_max_idx].X);
+
+    if (ui->monitorGraph->rtrace->enabled && scandata.points[scandata.R_max_idx].R > scale->vmax)
+        scale->vmax=scandata.points[scandata.R_max_idx].R;
+
+    //if (ui->monitorGraph->x2trace->enabled && scandata.points[scandata.X2_min_idx].X2 <  scale->vmin)
+    //    scale->vmin=scandata.points[scandata.X2_min_idx].X2;
+
+    if (scale->vmax==0.0)
+        scale->vmax=1.0;
+
+    scale->SetIncAuto();
+    scale->SetMinAuto();
+
+    printf("Data points available: %ld\n" , scandata.points.size() );
+
+    ui->monitorGraph->swrtrace->points.resize(scandata.points.size());
+    for (unsigned int i=0 ; i < scandata.points.size() ; i++) {
+        ui->monitorGraph->swrtrace->points[i] = scandata.points[i].swr;
+        //printf("SWR: %lf\n" , scandata.points[i].swr);
+        //printf("Freq: %lf\n", scandata.points[i].freq);
+    }
+
+    ui->monitorGraph->ztrace->points.resize(scandata.points.size());
+    for (unsigned int i=0 ; i < scandata.points.size() ; i++) {
+        ui->monitorGraph->ztrace->points[i] = scandata.points[i].Z;
+//        printf("Z:   %lf\n" , scandata.points[i].Z);
+    }
+
+
+    ui->monitorGraph->xtrace->points.resize(scandata.points.size());
+    for (unsigned int i=0 ; i < scandata.points.size() ; i++) {
+        ui->monitorGraph->xtrace->points[i] = scandata.points[i].X;
+//        printf("X:   %lf\n" , scandata.points[i].X);
+    }
+
+//    ui->monitorGraph->x2trace->points.resize(scandata.points.size());
+//    for (unsigned int i=0;i<scandata.points.size();i++)
+//        ui->monitorGraph->x2trace->points[i] = scandata.points[i].X2;
+
+    ui->monitorGraph->rtrace->points.resize(scandata.points.size());
+    for (unsigned int i=0 ; i < scandata.points.size() ; i++) {
+        ui->monitorGraph->rtrace->points[i] = scandata.points[i].R;
+//        printf("R:   %lf\n" , scandata.points[i].R);
+    }
+
+    ui->monitorGraph->ZTargetline->val = Config::Z_Target;
+    ui->monitorGraph->SWRTargetline->val = Config::swr_bw_max;
+
+    //ui->monitorGraph->swrminline->val = scandata.points[scandata.swr_min_idx].freq;
 
     printf("Updating canvas...\n");
-    ui->canvas1->update();
+    ui->monitorGraph->update();
 
     printf("Canvas updated!\n");
     //Show stats at the bottom of the graph
-    ui->swr_min_disp->setText(QString("%1 (f=%2MHz, Z=%3%4, bw=%5MHz)")
+    ui->monStatus->setText(QString("%1 (f=%2MHz, Z=%3%4, bw=%5MHz)")
             .arg(scandata.points[scandata.swr_min_idx].swr,0,'f',2)
             .arg(scandata.points[scandata.swr_min_idx].freq/1000000)
             .arg(scandata.points[scandata.swr_min_idx].Z,0,'f',2).arg(QChar(0x03A9))
@@ -184,6 +330,13 @@ void MainWindow::draw_graph1()
     ui->scan_data->setRowCount(scandata.points.size());
 }
 
+
+/*
+ * Slot_scanBtn_click()
+ *
+ * Slot handler for when the Scan ui button is pressed.
+ *
+ * */
 void MainWindow::Slot_scanBtn_click()
 {
     scandata.freq_start = (ui->fcentre->value()-ui->fspan->value()/2.0)*1000000;
@@ -198,13 +351,24 @@ void MainWindow::Slot_scanBtn_click()
                   ui->useraw_chk->checkState()==Qt::Checked,
                   this);
         link->Cmd_Off(this);
+    } else {
+        printf("WARNING: No serial device connected!!!");
     }
 
     printf("Populating table....\n");
     populate_table();
     printf("Drawing graph....\n");
-    draw_graph1();
+    draw_scanGraph();
 }
+
+/*
+ * Slot_scanDummyBtn_click()
+ *
+ * Slot handler for when the Test button is pressed.
+ * The test button will fill up the scnadata object with
+ * pre-defined data.
+ *
+ * */
 
 void MainWindow::Slot_scanDummyBtn_click()
 {
@@ -215,9 +379,16 @@ void MainWindow::Slot_scanDummyBtn_click()
     scandata.dummy_data(this);
 
     populate_table();
-    draw_graph1();
+    draw_scanGraph();
+    draw_monitorGraph();
 }
 
+/* Slot_cursor_move()
+ *
+ * Called when the user clicks or moves the graph cursor.
+ * Shows to the user the current selected sampled value.
+ *
+ * */
 void MainWindow::Slot_cursor_move(double pos)
 {
 //printf("pos=%lf\n",pos);
@@ -258,12 +429,12 @@ void MainWindow::Slot_band_change(int idx)
         case 5: set_band(12.0, 2.0);  break;    //25m
         case 6: set_band(15.0, 4.0);  break;    //20m
         case 7: set_band(18.0, 2.0);  break;    //17m
-        case 8: set_band(21.0, 4.0);  break; //15m
-        case 9: set_band(24.5, 3.0);  break; //12m
-        case 10: set_band(27.0,	2.0); break;  //11m
-        case 11: set_band(29.5,	3.0); break;  //10m
-        case 12: set_band(40,	18.0); break;      //8m
-        case 13: set_band(51,	4.0); break;      //6m
+        case 8: set_band(21.0, 4.0);  break;    //15m
+        case 9: set_band(24.5, 3.0);  break;    //12m
+        case 10: set_band(27.0,	2.0); break;    //11m
+        case 11: set_band(29.5,	3.0); break;    //10m
+        case 12: set_band(40, 18.0); break;     //8m
+        case 13: set_band(51,	4.0); break;    //6m
         case 14: set_band(30.5,	59.0); break;
         case 15: set_band(16.5,	27.0); break;
         case 16: set_band(27.5,	5.0); break;
@@ -308,12 +479,12 @@ void MainWindow::Slot_point_count_change(int)
 
 void MainWindow::Slot_plot_change(int)
 {
-    ui->canvas1->ztrace->enabled = ui->plotz_chk->checkState()==Qt::Checked;
-    ui->canvas1->xtrace->enabled = ui->plotx_chk->checkState()==Qt::Checked;
-    //ui->canvas1->x2trace->enabled = ui->plotx2_chk->checkState()==Qt::Checked;
-    ui->canvas1->rtrace->enabled = ui->plotr_chk->checkState()==Qt::Checked;
-    draw_graph1();
-//    ui->canvas1->update();
+    ui->scanGraph->ztrace->enabled = ui->plotz_chk->checkState()==Qt::Checked;
+    ui->scanGraph->xtrace->enabled = ui->plotx_chk->checkState()==Qt::Checked;
+    //ui->scanGraph->x2trace->enabled = ui->plotx2_chk->checkState()==Qt::Checked;
+    ui->scanGraph->rtrace->enabled = ui->plotr_chk->checkState()==Qt::Checked;
+    draw_scanGraph();
+//    ui->scanGraph->update();
 }
 
 void MainWindow::Slot_Load()
@@ -360,7 +531,7 @@ void MainWindow::Slot_Load()
         }
 
         populate_table();
-        draw_graph1();
+        draw_scanGraph();
 
         ui->fcentre->setValue((scandata.freq_end+scandata.freq_start)/2000000.0);
         ui->fspan->setValue((scandata.freq_end-scandata.freq_start)/1000000.0);
@@ -452,9 +623,10 @@ void MainWindow::Slot_menuDevice_Select(QAction *act)
 void MainWindow::Slot_about()
 {
       QMessageBox::about(this, "About Antenna Analyzer",
-            QString("Antenna Analyzer - scanning &amp; graph plotting program for the SARK100 antenna analyzer.<br><br>"
+            QString("Antenna Analyzer - scanning &amp; graph plotting program for the SARK100 antenna analyzer<br> or compatiblem home made analysers.<br><br>"
                "Version %1.%2.%3 %4<br><br>"
-               "&copy; 2015 jedi98.uk").arg(version.major).arg(version.minor).arg(version.build).arg(version.subversion));
+               "&copy; 2015 jedi98.uk<br>"
+               "&copy; 2019 primalcortex.wordpress.com<br>").arg(version.major).arg(version.minor).arg(version.build).arg(version.subversion));
 }
 
 void MainWindow::Slot_Settings()
@@ -464,7 +636,7 @@ void MainWindow::Slot_Settings()
     if (dlg.exec() == QDialog::Accepted)
     {
       scandata.UpdateStats();
-      draw_graph1();
+      draw_scanGraph();
     }
 }
 
@@ -482,4 +654,59 @@ void MainWindow::Slot_copy()
 
   qApp->clipboard()->setText(txt);
   printf("Data was copied to the clipboard!\n");
+}
+
+void MainWindow::Slot_freqmon_change(double)
+{
+
+}
+
+void MainWindow::Slot_moninterval_change(double)
+{
+
+}
+
+void MainWindow::Slot_moncursor_move(double) {
+
+}
+
+void MainWindow::Slot_monstartBtn_click() {
+    Sample sample;
+    int datapoints, i;
+
+    datapoints = ui->monPoints->value();
+
+    scandata.points.resize(0);
+    scandata.freq_start = ui->freqMon->value();
+    scandata.freq_end = ui->freqMon->value();
+
+    this->RaiseEvent(EventReceiver::progress_event, 0 );
+
+    // Set the VFO frequency first
+    //setVFO(ui->
+
+    for ( i = 0 ; i < datapoints + 1 ; i++ ) {
+        double vf,vr,vz,va;
+        vf = vr = vz = va = 10;
+
+        //sample.fromRaw(vf,vr,vz,va);
+        sample.swr = 1.01 + random() * 30;
+        sample.R = 50;
+        sample.Z = 50;
+        sample.X = 10;
+        sample.freq = scandata.freq_start;    // Not really used, but need to fill it up.
+
+        scandata.points.push_back(sample);
+
+        this->RaiseEvent(EventReceiver::progress_event, i );
+
+        scandata.UpdateStats();
+        populate_table();
+
+        draw_monitorGraph();
+    }
+}
+
+void MainWindow::Slot_monstopBtn_click() {
+
 }

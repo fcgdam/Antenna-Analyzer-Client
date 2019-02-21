@@ -28,7 +28,8 @@ public:
 private:
     void set_band(double f, double span);
     void set_scan_disp();
-    void draw_graph1();
+    void draw_scanGraph();
+    void draw_monitorGraph();
     void populate_table();
     void toDom(QDomDocument &doc);
     void fromDom(QDomElement &e0);
@@ -51,6 +52,11 @@ private slots:
     void Slot_Settings();
     void Slot_about();
     void Slot_copy();
+    void Slot_freqmon_change(double);
+    void Slot_moninterval_change(double);
+    void Slot_moncursor_move(double);
+    void Slot_monstartBtn_click();
+    void Slot_monstopBtn_click();
 };
 
 #endif // MAINWINDOW_H

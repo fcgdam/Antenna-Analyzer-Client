@@ -18,7 +18,7 @@ SerialLink::SerialLink(const char *dev,int speed)
 {
     rxbufflen=0;
 
-printf("SerialLink::Init: dev %s\n",dev);
+    printf("SerialLink::Init: dev %s\n",dev);
     devname = dev;
     devfd = open(dev, O_RDWR | O_NOCTTY | O_NDELAY);
     if (devfd != -1)
@@ -26,15 +26,17 @@ printf("SerialLink::Init: dev %s\n",dev);
         struct termios termattr;
         tcgetattr(devfd, &termattr);
         cfmakeraw(&termattr);
-printf("\tc_cflag=%x\n",termattr.c_cflag);
+        printf("\tc_cflag=%x\n",termattr.c_cflag);
         termattr.c_oflag &= ~(ONLCR);
+
 #if defined(__APPLE__) && defined(__MACH__)
         termattr.c_cflag &= ~(CRTSCTS|PARENB|CSTOPB);
 #else
         termattr.c_cflag &= ~(CRTSCTS|PARENB|CSTOPB|CBAUD);
 #endif
         termattr.c_cflag |= CS8 | CLOCAL;
-printf("\tc_cflag=%x\n",termattr.c_cflag);
+        printf("\tc_cflag=%x\n",termattr.c_cflag);
+
 #if defined(__APPLE__) && defined(__MACH__)
         switch (speed)
         {
@@ -64,10 +66,10 @@ printf("\tc_cflag=%x\n",termattr.c_cflag);
           case 115200: termattr.c_cflag |= B115200; break;
         }
 #endif
-printf("\tc_cflag=%x\n",termattr.c_cflag);
+        printf("\tc_cflag=%x\n",termattr.c_cflag);
         tcsetattr(devfd, TCSANOW, &termattr);
     }
-printf("\tdevfd %d\n",devfd);
+    printf("\tdevfd %d\n",devfd);
 
 #ifdef DUMMY_DEV
     dummy_data = "";
@@ -288,7 +290,7 @@ printf("state: %d\n",state);
                 }
                 else
                 {
-printf("f=%ld\n",frequency);
+                    printf("f=%ld\n",frequency);
                     sample.freq = (double)(frequency);
                     if (useraw)
                     {
@@ -325,7 +327,7 @@ void SerialLink::Cmd_Off(EventReceiver *erx)
 
     //RxFlush();
 
-    TxCmd((char *)"off\r");
+    TxCmd("off\r");
 
     for (;state<10;)
     {
