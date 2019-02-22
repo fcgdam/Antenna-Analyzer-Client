@@ -22,7 +22,7 @@ allowing this software to be compiled and executed on OSX.
 SARK 100 / MINI 60 Antenna Analyzer GUI
 =======================================
 
-![](/images/images/Analyzer_Screenshot1.png?raw=true)
+![](/images/Analyzer_Screenshot1.png?raw=true)
 
 Requirements
 ------------
