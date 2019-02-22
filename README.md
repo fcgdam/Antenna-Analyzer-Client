@@ -1,3 +1,19 @@
+**2019:** This QT based Linux client for the Sark antenna analyser is modified to also work with my (in construction) home made Arduino based antenna analyser.
+Important changes from the original code are:
+
+```
+1- Some code cleanup
+2- Solved some issues with the original code
+3- Added a functional Monitor tab
+```
+
+The new functional monitor tab allows to use the antenna analyser in real time when connected to an antenna and/or antenna tunner and see the influence of any changes done to the antenna or on the antenna tunner.
+It's still work in progress, so some issues are still possible.
+
+![](/images/Antenna-analyser-RealTime-monitor.jpg?raw=true)
+
+Original README follows:
+
 **NOTE**: *I am not the original author of this software;* this software was
 originally created by Jeremy Burton, and I have moved these changes
 here from http://jedi98.uk/antenna_analyzer.php so I can share changes
@@ -6,7 +22,7 @@ allowing this software to be compiled and executed on OSX.
 SARK 100 / MINI 60 Antenna Analyzer GUI
 =======================================
 
-![](http://jedi98.uk/images/Analyzer_Screenshot1.png)
+![](/images/images/Analyzer_Screenshot1.png?raw=true)
 
 Requirements
 ------------

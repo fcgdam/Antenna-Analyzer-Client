@@ -2,6 +2,7 @@
 #define SERIALLINK_H
 
 #include <QString>
+#include "scandata.h"
 
 //#define DUMMY_DEV
 
@@ -21,6 +22,9 @@ public:
     bool IsUp();
     void Cmd_Scan(long fstart, long fend, long fstep, bool useraw, EventReceiver *erx);
     void Cmd_Off(EventReceiver *erx);
+    void Cmd_On();
+    void Set_VFO(long freq);
+    void Get_Imp(Sample*, bool);
 
     QString devname;
 

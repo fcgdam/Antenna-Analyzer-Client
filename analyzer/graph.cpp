@@ -163,6 +163,10 @@ void GraphScale::Expand(double min,double max)
     if (max>vmax) vmax=max;
 }
 
+void GraphScale::Set_Xlabdiv(double div ) {
+    this->labdiv = div;
+}
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 //GraphHorizLine::GraphHorizLine(Graph *g, GraphScale *s) : GraphItem(g)

@@ -45,6 +45,7 @@ private slots:
     void Slot_fspan_change(double v);
     void Slot_point_count_change(int);
     void Slot_plot_change(int);
+    void Slot_monplot_change(int);
     void Slot_menuDevice_Show();
     void Slot_menuDevice_Select(QAction *act);
     void Slot_Load();

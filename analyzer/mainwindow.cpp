@@ -4,6 +4,7 @@
 #include <QFileDialog>
 #include <QMessageBox>
 #include <QClipboard>
+#include <QThread>
 
 #include "scandata.h"
 
@@ -16,6 +17,7 @@ const Version
     MainWindow::version = Version(0,10,14,"");
 
 ScanData scandata;
+bool     monitorOn;
 
 /*
  * Main startup function
@@ -65,13 +67,18 @@ MainWindow::MainWindow(QWidget *parent) :
     connect(ui->monstopBtn,           SIGNAL(clicked()), this,SLOT(Slot_monstopBtn_click()));
 
 
-    QCheckBox *ctrls[] = {ui->plotz_chk,ui->plotx_chk,ui->plotr_chk, NULL};
+    QCheckBox *ctrls[] = {ui->plotz_chk,ui->plotx_chk,ui->plotr_chk, nullptr};
     for (int i=0; ctrls[i]; i++)
         connect(ctrls[i], SIGNAL(stateChanged(int)), this, SLOT(Slot_plot_change(int)));
 
+    QCheckBox *monctrls[] = {ui->monplotz_chk,ui->monplotx_chk,ui->monplotr_chk, nullptr};
+    for (int i=0; monctrls[i]; i++)
+        connect(monctrls[i], SIGNAL(stateChanged(int)), this, SLOT(Slot_monplot_change(int)));
+
+    // The device name and Baudrate are hardcoded for now...
     link = new SerialLink("/dev/ttyUSB0",57600);
 
-    ui->band_cb->setCurrentIndex(16);
+    ui->band_cb->setCurrentIndex(6);   // Default 20m HF band
 
     // Set the headers for the table view
     ui->scan_data->setHorizontalHeaderLabels(QStringList() << "freq" << "SWR" << "Z" << "R" << "X" << "X2");
@@ -82,7 +89,8 @@ MainWindow::MainWindow(QWidget *parent) :
     ui->monitorGraph->cursor = ui->monitorCursor;
 
     ui->tabWidget->setCurrentIndex(0);
-    ui->tabWidget->setTabEnabled(1,false);
+    // Disable the Monitor tab while code is not ready...
+    //ui->tabWidget->setTabEnabled(1,false);
 }
 
 
@@ -139,6 +147,7 @@ void MainWindow::draw_scanGraph()
     scale = ui->scanGraph->xscale;
     scale->vmin = scandata.freq_start;
     scale->vmax = scandata.freq_end;
+    scale->Set_Xlabdiv(1000000);
     scale->SetIncAuto();
 
     scale = ui->scanGraph->yscale1;
@@ -234,16 +243,12 @@ void MainWindow::draw_monitorGraph()
     //double n;
 
     scale = ui->monitorGraph->xscale;
-    //scale->vmin = 1;
-    //scale->vmax = scandata.points.size() + 1;
+    scale->vmin = 0;
+    scale->vmax = scandata.points.size();
+    scale->Set_Xlabdiv(1);
+    scale->SetIncAuto();
 
-    scale->vmin = 1000000;
-    scale->vmax = scandata.freq_end;
-    scale->enabled = false;
-
-    //scale->SetIncAuto();
-
-    printf("Points: %ld\n",scandata.points.size());
+    //printf("Points: %ld\n",scandata.points.size());
 
     scale->SetIncAuto();
 
@@ -314,18 +319,15 @@ void MainWindow::draw_monitorGraph()
 
     //ui->monitorGraph->swrminline->val = scandata.points[scandata.swr_min_idx].freq;
 
-    printf("Updating canvas...\n");
+    //printf("Updating canvas...\n");
     ui->monitorGraph->update();
 
-    printf("Canvas updated!\n");
+    //printf("Canvas updated!\n");
     //Show stats at the bottom of the graph
-    ui->monStatus->setText(QString("%1 (f=%2MHz, Z=%3%4, bw=%5MHz)")
-            .arg(scandata.points[scandata.swr_min_idx].swr,0,'f',2)
-            .arg(scandata.points[scandata.swr_min_idx].freq/1000000)
-            .arg(scandata.points[scandata.swr_min_idx].Z,0,'f',2).arg(QChar(0x03A9))
-            .arg((scandata.points[scandata.swr_bw_hi_idx].freq-scandata.points[scandata.swr_bw_lo_idx].freq)/1000000,0,'f',2));
+    ui->monStatus->setText(QString("SWR Min: %1")
+            .arg(scandata.points[scandata.swr_min_idx].swr,0,'f',2));
 
-    printf("Label set.\n");
+    //printf("Label set.\n");
     //Populate data grid
     ui->scan_data->setRowCount(scandata.points.size());
 }
@@ -427,7 +429,7 @@ void MainWindow::Slot_band_change(int idx)
         case 3: set_band(6.5, 3.0);  break;     //40m
         case 4: set_band(9.5, 3.0);  break;     //30m
         case 5: set_band(12.0, 2.0);  break;    //25m
-        case 6: set_band(15.0, 4.0);  break;    //20m
+        case 6: set_band(14.0, 4.0);  break;    //20m
         case 7: set_band(18.0, 2.0);  break;    //17m
         case 8: set_band(21.0, 4.0);  break;    //15m
         case 9: set_band(24.5, 3.0);  break;    //12m
@@ -484,6 +486,16 @@ void MainWindow::Slot_plot_change(int)
     //ui->scanGraph->x2trace->enabled = ui->plotx2_chk->checkState()==Qt::Checked;
     ui->scanGraph->rtrace->enabled = ui->plotr_chk->checkState()==Qt::Checked;
     draw_scanGraph();
+//    ui->scanGraph->update();
+}
+
+void MainWindow::Slot_monplot_change(int)
+{
+    ui->monitorGraph->ztrace->enabled = ui->monplotz_chk->checkState() == Qt::Checked;
+    ui->monitorGraph->xtrace->enabled = ui->monplotx_chk->checkState() == Qt::Checked;
+    //ui->scanGraph->x2trace->enabled = ui->monplotx2_chk->checkState()== Qt::Checked;
+    ui->monitorGraph->rtrace->enabled = ui->monplotr_chk->checkState() == Qt::Checked;
+    draw_monitorGraph();
 //    ui->scanGraph->update();
 }
 
@@ -666,47 +678,72 @@ void MainWindow::Slot_moninterval_change(double)
 
 }
 
-void MainWindow::Slot_moncursor_move(double) {
+void MainWindow::Slot_moncursor_move(double pos) {
+        Sample *sample = &scandata.points[pos*(double)(scandata.points.size()-1)];
 
+        ui->monCursor->setText(QString("swr=%1, Z=%2%3")
+                .arg(sample->swr,0,'f',2)
+                .arg(sample->Z,0,'f',2)
+                .arg(QChar(0x03A9)));
 }
 
 void MainWindow::Slot_monstartBtn_click() {
     Sample sample;
-    int datapoints, i;
-
-    datapoints = ui->monPoints->value();
-
-    scandata.points.resize(0);
-    scandata.freq_start = ui->freqMon->value();
-    scandata.freq_end = ui->freqMon->value();
+    int datapoints, i = 0;
 
     this->RaiseEvent(EventReceiver::progress_event, 0 );
 
-    // Set the VFO frequency first
-    //setVFO(ui->
+    if (link->IsUp())
+    //if ( true )
+    {
+        scandata.points.resize(0);
+        scandata.freq_start = ui->freqMon->value() * 1000000;
+        scandata.freq_end = ui->freqMon->value() * 1000000;
 
-    for ( i = 0 ; i < datapoints + 1 ; i++ ) {
-        double vf,vr,vz,va;
-        vf = vr = vz = va = 10;
 
-        //sample.fromRaw(vf,vr,vz,va);
-        sample.swr = 1.01 + random() * 30;
-        sample.R = 50;
-        sample.Z = 50;
-        sample.X = 10;
-        sample.freq = scandata.freq_start;    // Not really used, but need to fill it up.
+        // Set the VFO frequency first
+        link->Set_VFO(ui->freqMon->value() * 1000000 );
 
-        scandata.points.push_back(sample);
+        // Turn on the VFO
+        link->Cmd_On();
 
-        this->RaiseEvent(EventReceiver::progress_event, i );
+        monitorOn = true;
+        datapoints = ui->monPoints->value();
 
-        scandata.UpdateStats();
-        populate_table();
+        while ( (i < datapoints + 1) && (monitorOn == true ) ) {
+/*            double vf,vr,vz,va;
+            vf = vr = vz = va = 10;
 
-        draw_monitorGraph();
+            //sample.fromRaw(vf,vr,vz,va);
+            sample.swr = 1.01;
+            sample.R = 50;
+            sample.Z = 50;
+            sample.X = 10;
+            sample.freq = scandata.freq_start;    // Not really used, but need to fill it up.
+*/
+            link->Get_Imp(&sample, ui->monRaw->checkState() == Qt::Checked );
+            scandata.points.push_back(sample);
+
+            this->RaiseEvent(EventReceiver::progress_event, i );
+
+            scandata.UpdateStats();
+            populate_table();
+
+            draw_monitorGraph();
+
+            // Sleep the defined msecs
+            QThread::msleep((unsigned long)ui->monInterval->value());
+            // Process any pending events.
+            QCoreApplication::processEvents();
+
+            i++;
+        }
+    } else {
+        printf("Error. No antenna analyser connected...\n");
     }
 }
 
 void MainWindow::Slot_monstopBtn_click() {
-
+    monitorOn = false;
+    this->RaiseEvent(EventReceiver::progress_event, 100 );
 }

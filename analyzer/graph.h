@@ -47,13 +47,14 @@ public:
     void SetIncAuto();
     void SetMinAuto();
     void Expand(double min,double max);
+    void Set_Xlabdiv(double);               // Sets the X scale label divider
 
-    QFont font;
-    double vmin, vmax, vinc;
-    pos_t pos;
-    int labdps;
+    QFont   font;
+    double  vmin, vmax, vinc;
+    pos_t   pos;
+    int     labdps;
     QString title,labsuffix;
-    double labdiv;
+    double  labdiv;
 };
 
 class GraphDataItem : public GraphItem

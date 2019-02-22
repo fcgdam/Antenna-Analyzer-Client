@@ -261,11 +261,12 @@ void SerialLink::Cmd_Scan(long fstart, long fend, long fstep, bool useraw, Event
     for (;state<10;)
     {
         r = RxLine();
-printf("RxLine=%d\n",r);
+        printf("RxLine=%d\n",r);
         if (r==0)
-        {
-printf("RxLine: %s (%d)\n",rxbuff,rxbufflen);
-printf("state: %d\n",state);
+        {          
+            printf("RxLine: %s (%d)\n",rxbuff,rxbufflen);
+            printf("state: %d\n",state);
+
             switch (state)
             {
             case 0:
@@ -332,11 +333,13 @@ void SerialLink::Cmd_Off(EventReceiver *erx)
     for (;state<10;)
     {
         r = RxLine();
-printf("RxLine=%d\n",r);
+        printf("RxLine=%d\n",r);
+
         if (r==0)
         {
-printf("RxLine: %s (%d)\n",rxbuff,rxbufflen);
-printf("state: %d\n",state);
+            printf("RxLine: %s (%d)\n",rxbuff,rxbufflen);
+            printf("state: %d\n",state);
+
             switch (state)
             {
             case 0:
@@ -352,6 +355,152 @@ printf("state: %d\n",state);
                 }
                 else
                     state=0;   //Garbage ? Ignore
+                break;
+            }
+        }
+        else
+            state=10;   //Timeout
+    }
+}
+
+void SerialLink::Cmd_On()
+{
+    int state = 0,r;
+
+    //RxFlush();
+
+    TxCmd("On\r");
+
+    for (;state<10;)
+    {
+        r = RxLine();
+        printf("RxLine=%d\n",r);
+
+        if (r==0)
+        {
+            printf("RxLine: %s (%d)\n",rxbuff,rxbufflen);
+            printf("state: %d\n",state);
+
+            switch (state)
+            {
+            case 0:
+                if (strcmp(rxbuff,"OK")==0)
+                {
+                    printf("Command On accepted\n");
+                    state=10;    //Results
+                }
+                else if (strncmp(rxbuff,"Error:",5)==0)
+                {
+                    state=10;   //Error
+                }
+                else
+                    state=0;   //Garbage ? Ignore
+                break;
+            }
+        }
+        else
+            state=10;   //Timeout
+    }
+}
+
+void SerialLink::Set_VFO(long freq) {
+    char cmd[64];
+    int state = 0,r;
+
+    sprintf(cmd,"freq %ld\r", freq );
+    printf("Cmd: %s\n", cmd);
+    TxCmd(cmd);
+
+    for (;state<10;)
+    {
+        r = RxLine();
+        printf("RxLine=%d\n",r);
+
+        if (r==0)
+        {
+            printf("RxLine: %s (%d)\n",rxbuff,rxbufflen);
+            printf("state: %d\n",state);
+
+            switch (state)
+            {
+            case 0:
+                if (strcmp(rxbuff,"OK")==0)
+                {
+                    printf("Command freq (Set_VFO) accepted\n");
+                    state=10;    //Results
+                }
+                else if (strncmp(rxbuff,"Error:",5)==0)
+                {
+                    state=10;   //Error
+                }
+                else
+                    state=0;   //Garbage ? Ignore
+                break;
+            }
+        }
+        else
+            state=10;   //Timeout
+    }
+
+}
+
+void SerialLink::Get_Imp(Sample *sample, bool useraw)
+{
+    char cmd[64];
+    int state = 0,r;
+
+    //RxFlush();
+
+    sprintf(cmd,"%s\r", useraw?"raw":"imp");
+    TxCmd(cmd);
+
+    scandata.points.resize(0);
+
+    for (;state<10;)
+    {
+        r = RxLine();
+        printf("RxLine=%d\n",r);
+        if (r==0)
+        {
+            printf("RxLine: %s (%d)\n",rxbuff,rxbufflen);
+            printf("state: %d\n",state);
+
+            switch (state)
+            {
+            case 0:
+                if (strcmp(rxbuff,"Start")==0)
+                {
+                    state=1;    //Results
+                }
+                else if (strncmp(rxbuff,"Error:",5)==0)
+                {
+                    state=10;   //Error
+                }
+                else
+                    state=0;   //Garbage ? Ignore
+                break;
+
+            case 1:
+                if (strcmp(rxbuff,"End")==0)
+                {
+                    state=10;   //Done
+                }
+                else
+                {
+                    if (useraw)
+                    {
+                        double vf,vr,vz,va;
+
+                        sscanf(rxbuff,"%lf,%lf,%lf,%lf",&vf,&vr,&vz,&va);
+                        //printf("Data: Vf=%lf , Vr=%lf, Vz=%lf, Va=%lf\n", vf, vr, vz, va);
+                        sample->fromRaw(vf,vr,vz,va);
+                    }
+                    else
+                    {
+                        sscanf(rxbuff,"%lf,%lf,%lf,%lf",&sample->swr,&sample->R,&sample->X,&sample->Z);
+                        //printf("Data: SWR=%lf, R=%lf, X=%lf, Z=%lf\n", sample.swr, sample.R, sample.X, sample.Z );
+                    }
+                }
                 break;
             }
         }
